@@ -28,16 +28,6 @@
         .header h1 span { background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
         /* --- CONFIGURATION --- */
-        .photo-area {
-            width: 120px; height: 120px; margin: 0 auto 30px;
-            border-radius: 50%; background: var(--card); border: 3px solid var(--theme-color);
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; overflow: hidden; position: relative;
-            box-shadow: 0 0 20px rgba(var(--theme-color-rgb), 0.2);
-        }
-        .photo-area img { width: 100%; height: 100%; object-fit: cover; display: none; }
-        .photo-area i { font-size: 1.8rem; color: var(--theme-color); }
-
         .section-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); margin: 25px 0 12px; text-transform: uppercase; letter-spacing: 1.5px; display: block; }
 
         .color-picker { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
@@ -73,7 +63,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .bio-glow { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 350px; height: 350px; background: var(--theme-color); filter: blur(140px); opacity: 0.2; z-index: -1; }
-        .bio-photo { width: 140px; height: 140px; border-radius: 50%; border: 4px solid var(--theme-color); object-fit: cover; box-shadow: 0 0 25px rgba(var(--theme-color-rgb), 0.5); margin-bottom: 20px; }
+        .bio-photo { width: 140px; height: 140px; border-radius: 50%; border: 4px solid var(--theme-color); object-fit: cover; box-shadow: 0 0 25px rgba(var(--theme-color-rgb), 0.5); margin-bottom: 20px; margin-left: auto; margin-right: auto; }
         .artist-name { font-size: 2.5rem; font-weight: 900; margin: 0 0 10px; }
         .artist-bio { color: var(--text-dim); font-size: 1.05rem; line-height: 1.6; padding: 0 20px; margin-bottom: 30px; }
 
@@ -133,11 +123,14 @@
     <div class="app-container" id="editSection">
         <div class="header"><h1>221 <span>BEATS</span></h1></div>
 
-        <div class="photo-area" onclick="document.getElementById('fileInput').click()">
-            <img id="profileImg" src="">
-            <i class="fas fa-camera" id="camIcon"></i>
+        <span class="section-label">Avatar</span>
+        <div class="avatar-picker" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; font-size: 2.2rem;">
+            <i class="fas fa-user avatar-option active" style="color: var(--theme-color); cursor: pointer;" onclick="selectAvatar('fa-user', this)"></i>
+            <i class="fas fa-user-astronaut avatar-option" style="color: var(--text-dim); cursor: pointer;" onclick="selectAvatar('fa-user-astronaut', this)"></i>
+            <i class="fas fa-user-ninja avatar-option" style="color: var(--text-dim); cursor: pointer;" onclick="selectAvatar('fa-user-ninja', this)"></i>
+            <i class="fas fa-robot avatar-option" style="color: var(--text-dim); cursor: pointer;" onclick="selectAvatar('fa-robot', this)"></i>
+            <i class="fas fa-compact-disc avatar-option" style="color: var(--text-dim); cursor: pointer;" onclick="selectAvatar('fa-compact-disc', this)"></i>
         </div>
-        <input type="file" id="fileInput" accept="image/*" hidden onchange="loadImage(event)">
 
         <span class="section-label">Thème</span>
         <div class="color-picker">
@@ -159,16 +152,18 @@
     </div>
 
     <div id="previewSection">
-        <div class="edit-btn" onclick="goBack()"><i class="fas fa-pen"></i></div>
+        <div class="edit-btn" id="editPencilBtn" onclick="goBack()"><i class="fas fa-pen"></i></div>
         <div class="bio-glow"></div>
         <div class="bio-header">
-            <img id="bioPhoto" class="bio-photo" src="">
+            <div class="bio-photo" style="display: flex; justify-content: center; align-items: center; font-size: 4rem; background: var(--card); color: var(--theme-color);">
+                <i id="bioAvatar" class="fas fa-user"></i>
+            </div>
             <h2 id="bioName" class="artist-name"></h2>
             <p id="bioBio" class="artist-bio"></p>
         </div>
-        <button class="copy-link-btn" onclick="copyMyBio()"><i class="fas fa-link"></i> <span id="copyTxt">Copier mon lien</span></button>
+        <button class="copy-link-btn" id="copyBtn" onclick="copyMyBio()"><i class="fas fa-link"></i> <span id="copyTxt">Copier mon lien</span></button>
         <div id="bioLinks" class="links-container"></div>
-        <a href="#" class="footer-brand">Powered by <span>221 BEATS</span></a>
+        <a href="javascript:window.location.href=window.location.origin+window.location.pathname" class="footer-brand">Powered by <span>221 BEATS</span></a>
     </div>
 
     <script>
@@ -187,6 +182,7 @@
 
         const activeSet = new Set();
         const storedLinks = {};
+        let currentAvatar = 'fa-user';
 
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
@@ -194,6 +190,9 @@
                 try {
                     const decoded = JSON.parse(decodeURIComponent(escape(atob(params.get('data')))));
                     renderFinalPage(decoded);
+                    // On cache le crayon de modification et le bouton copier pour les visiteurs
+                    document.getElementById('editPencilBtn').style.display = 'none';
+                    document.getElementById('copyBtn').style.display = 'none';
                 } catch(e) { console.error("Lien invalide"); }
             }
         };
@@ -218,21 +217,25 @@
             });
         }
 
+        function selectAvatar(iconClass, el) {
+            currentAvatar = iconClass;
+            document.querySelectorAll('.avatar-option').forEach(i => {
+                i.style.color = 'var(--text-dim)';
+                i.classList.remove('active');
+            });
+            el.style.color = 'var(--theme-color)';
+            el.classList.add('active');
+        }
+
         function updateTheme(color, rgb, el) {
             document.documentElement.style.setProperty('--theme-color', color);
             document.documentElement.style.setProperty('--theme-color-rgb', rgb);
             document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
             el.classList.add('active');
-        }
-
-        function loadImage(e) {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const img = document.getElementById('profileImg');
-                img.src = reader.result; img.style.display = "block";
-                document.getElementById('camIcon').style.display = "none";
-            };
-            reader.readAsDataURL(e.target.files[0]);
+            
+            // Met à jour la couleur de l'avatar sélectionné
+            const activeAvatar = document.querySelector('.avatar-option.active');
+            if(activeAvatar) activeAvatar.style.color = color;
         }
 
         function buildBio() {
@@ -242,7 +245,7 @@
             const userData = {
                 name: name,
                 bio: document.getElementById('artBio').value,
-                photo: document.getElementById('profileImg').src,
+                avatar: currentAvatar,
                 links: {},
                 theme: getComputedStyle(document.documentElement).getPropertyValue('--theme-color'),
                 themeRgb: getComputedStyle(document.documentElement).getPropertyValue('--theme-color-rgb')
@@ -260,10 +263,10 @@
         function renderFinalPage(data) {
             document.getElementById('bioName').innerText = data.name;
             document.getElementById('bioBio').innerText = data.bio;
-            if(data.photo && data.photo.includes('data:image')) {
-                document.getElementById('bioPhoto').src = data.photo;
-                document.getElementById('bioPhoto').style.display = "inline-block";
-            } else { document.getElementById('bioPhoto').style.display = "none"; }
+            
+            if (data.avatar) {
+                document.getElementById('bioAvatar').className = 'fas ' + data.avatar;
+            }
 
             if(data.theme) {
                 document.documentElement.style.setProperty('--theme-color', data.theme);
@@ -287,13 +290,12 @@
             const userData = {
                 name: document.getElementById('bioName').innerText,
                 bio: document.getElementById('bioBio').innerText,
-                photo: document.getElementById('bioPhoto').src,
+                avatar: document.getElementById('bioAvatar').className.replace('fas ', ''),
                 links: {},
                 theme: getComputedStyle(document.documentElement).getPropertyValue('--theme-color'),
                 themeRgb: getComputedStyle(document.documentElement).getPropertyValue('--theme-color-rgb')
             };
 
-            // Récupérer les liens actifs pour être sûr d'avoir les dernières URLs
             activeSet.forEach(id => {
                 const input = document.querySelector(`input[data-id="${id}"]`);
                 if(input && input.value) userData.links[id] = input.value;
@@ -314,4 +316,4 @@
         function goBack() { document.getElementById('editSection').style.display = "block"; document.getElementById('previewSection').style.display = "none"; }
     </script>
 </body>
-</html>
+    </html>
