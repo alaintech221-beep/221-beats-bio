@@ -18,7 +18,16 @@
             --gradient: linear-gradient(135deg, #ff4757, var(--theme-color));
         }
 
-        * { box-sizing: border-box; font-family: 'Inter', sans-serif; transition: all 0.3s ease; }
+        /* MODIFICATIONS : Pas de flash + Blocage copie */
+        * { 
+            box-sizing: border-box; 
+            font-family: 'Inter', sans-serif; 
+            transition: all 0.3s ease; 
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+
         body { background-color: var(--bg); color: var(--text); margin: 0; padding: 0; overflow-x: hidden; }
         .app-container { max-width: 480px; margin: 0 auto; padding: 30px 20px; }
 
@@ -27,6 +36,9 @@
         .header h1 span { background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
         .section-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); margin: 25px 0 12px; text-transform: uppercase; letter-spacing: 1.5px; display: block; }
+
+        /* EFFET DE PRESSION SUR LES ÉLÉMENTS */
+        .avatar-option:active, .color-dot:active, .platform-chip:active, .btn-main:active, .link-card:active { transform: scale(0.95); }
 
         /* Avatar Picker */
         .avatar-picker { display: flex; justify-content: center; gap: 20px; margin-bottom: 15px; font-size: 2.2rem; }
@@ -38,7 +50,6 @@
         .color-dot { width: 40px; height: 40px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.1); position: relative; }
         .color-dot.active { border-color: white; transform: scale(1.15); box-shadow: 0 0 15px rgba(255,255,255,0.4); }
         
-        /* Custom color input hidden but triggered by label */
         .color-input-wrapper { position: relative; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; }
         .color-input-wrapper input[type="color"] { border: none; width: 200%; height: 200%; position: absolute; top: -50%; left: -50%; cursor: pointer; padding: 0; margin: 0; }
         .color-input-wrapper i { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: difference; font-size: 0.8rem; }
@@ -63,15 +74,19 @@
         }
         .input-field { flex: 1; background: transparent !important; border: none; color: white !important; outline: none; font-size: 0.95rem; }
         
-        /* FIX: Prevent white background on paste/autofill */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active{
+        input:-webkit-autofill {
             -webkit-box-shadow: 0 0 0 30px var(--card) inset !important;
             -webkit-text-fill-color: white !important;
-            transition: background-color 5000s ease-in-out 0s;
         }
+
+        /* STYLE DE L'ALERTE PERSONNALISÉE */
+        #customAlert {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: #ff4757; color: white; padding: 15px 25px; border-radius: 12px;
+            font-weight: 700; z-index: 1000; box-shadow: 0 10px 30px rgba(255, 71, 87, 0.4);
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #customAlert.show { transform: translateX(-50%) translateY(0); }
 
         .btn-main { 
             width: 100%; padding: 20px; border-radius: 18px; border: none; 
@@ -129,7 +144,7 @@
         .edit-btn { position: fixed; top: 20px; right: 20px; background: rgba(22, 27, 34, 0.8); color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100; border: 1px solid rgba(255,255,255,0.1); }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> <div id="customAlert">Attention : Nom requis !</div>
 
     <div class="popup-overlay" id="successPopup">
         <div class="popup-content">
@@ -198,6 +213,11 @@
     </div>
 
     <script>
+        // BLOQUER COPIER / COUPER / COLLER
+        document.addEventListener('copy', (e) => e.preventDefault());
+        document.addEventListener('cut', (e) => e.preventDefault());
+        document.addEventListener('paste', (e) => e.preventDefault());
+
         const platforms = {
             youtube: { icon: 'fab fa-youtube', label: 'YouTube', color: '#ff0000' },
             spotify: { icon: 'fab fa-spotify', label: 'Spotify', color: '#1DB954' },
@@ -214,26 +234,17 @@
         const activeSet = new Set();
         const storedLinks = {};
         let currentAvatarIcon = 'fa-user';
-        let globalState = {}; // Stocke les données finales
+        let globalState = {};
 
-        // Initialisation de la grille
         const grid = document.getElementById('platformGrid');
         Object.keys(platforms).forEach(p => {
             grid.innerHTML += `<div class="platform-chip" onclick="togglePlatform('${p}', this)"><i class="${platforms[p].icon}"></i><span>${platforms[p].label}</span></div>`;
         });
 
-        // Gestion des inputs et sauvegarde temporaire
         function togglePlatform(id, el) {
-            // Sauvegarder les valeurs actuelles avant de rafraichir
             document.querySelectorAll('.input-field[data-id]').forEach(i => { storedLinks[i.dataset.id] = i.value; });
-            
-            if(activeSet.has(id)) { 
-                activeSet.delete(id); 
-                el.classList.remove('active'); 
-            } else { 
-                activeSet.add(id); 
-                el.classList.add('active'); 
-            }
+            if(activeSet.has(id)) { activeSet.delete(id); el.classList.remove('active'); } 
+            else { activeSet.add(id); el.classList.add('active'); }
             refreshInputs();
         }
 
@@ -245,7 +256,6 @@
             });
         }
 
-        // Gestion Avatar
         function selectAvatar(icon, el) {
             currentAvatarIcon = icon;
             document.querySelectorAll('.avatar-option').forEach(i => i.style.color = 'var(--text-dim)');
@@ -253,7 +263,6 @@
             el.classList.add('active');
         }
 
-        // Gestion Thème
         function updateTheme(color, rgb, el) {
             document.documentElement.style.setProperty('--theme-color', color);
             document.documentElement.style.setProperty('--theme-color-rgb', rgb);
@@ -261,39 +270,34 @@
             if(el) el.classList.add('active');
         }
 
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? 
-                `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` 
-                : '0, 210, 255';
-        }
-
         function handleCustomColor(input) {
             const color = input.value;
-            const rgb = hexToRgb(color);
-            updateTheme(color, rgb, null);
-            // Highlight wrapper
+            const rgb = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
+            const rgbStr = rgb ? `${parseInt(rgb[1], 16)}, ${parseInt(rgb[2], 16)}, ${parseInt(rgb[3], 16)}` : '0, 210, 255';
+            updateTheme(color, rgbStr, null);
             document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
             input.parentElement.style.borderColor = 'white';
         }
 
-        // Encodage/Décodage pour URL (UTF-8 Safe)
-        function encodeData(obj) {
-            return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+        // FONCTION ALERTE SMART LINK
+        function showError() {
+            const alert = document.getElementById('customAlert');
+            alert.classList.add('show');
+            setTimeout(() => alert.classList.remove('show'), 3000);
         }
 
-        function decodeData(str) {
-            return JSON.parse(decodeURIComponent(escape(atob(str))));
-        }
+        function encodeData(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+        function decodeData(str) { return JSON.parse(decodeURIComponent(escape(atob(str)))); }
 
         function buildBio() {
-            // Sauvegarder les inputs visibles une dernière fois
             document.querySelectorAll('.input-field[data-id]').forEach(i => { storedLinks[i.dataset.id] = i.value; });
-
             const name = document.getElementById('artName').value.trim();
-            if(!name) return alert("Le nom est obligatoire !");
+            
+            if(!name) { 
+                showError(); // Utilisation de l'alerte personnalisée
+                return; 
+            }
 
-            // Construire l'objet final
             globalState = {
                 n: name,
                 b: document.getElementById('artBio').value,
@@ -304,96 +308,62 @@
                 tr: getComputedStyle(document.documentElement).getPropertyValue('--theme-color-rgb').trim()
             };
 
-            // Ajouter les liens actifs
-            activeSet.forEach(id => {
-                if(storedLinks[id]) globalState.l[id] = storedLinks[id];
-            });
-
+            activeSet.forEach(id => { if(storedLinks[id]) globalState.l[id] = storedLinks[id]; });
             renderFinalPage(globalState);
             document.getElementById('successPopup').style.display = "flex";
         }
 
         function renderFinalPage(data) {
-            // Appliquer les données au DOM
             document.getElementById('bioName').textContent = data.n;
             document.getElementById('bioBio').textContent = data.b;
-            
             const bioAvatar = document.getElementById('bioAvatar');
             const bioImg = document.getElementById('bioImg');
-
-            if(data.au) {
-                bioImg.src = data.au; bioImg.style.display = "block"; bioAvatar.style.display = "none";
-            } else {
-                bioAvatar.className = 'fas ' + (data.ai || 'fa-user');
-                bioAvatar.style.display = "block"; bioImg.style.display = "none";
-            }
-
-            if(data.t) {
-                document.documentElement.style.setProperty('--theme-color', data.t);
-                document.documentElement.style.setProperty('--theme-color-rgb', data.tr);
-            }
-
+            if(data.au) { bioImg.src = data.au; bioImg.style.display = "block"; bioAvatar.style.display = "none"; } 
+            else { bioAvatar.className = 'fas ' + (data.ai || 'fa-user'); bioAvatar.style.display = "block"; bioImg.style.display = "none"; }
+            if(data.t) { document.documentElement.style.setProperty('--theme-color', data.t); document.documentElement.style.setProperty('--theme-color-rgb', data.tr); }
             const list = document.getElementById('bioLinks');
             list.innerHTML = "";
             Object.keys(data.l).forEach(id => {
-                let url = data.l[id]; 
-                if(!url.startsWith('http')) url = 'https://' + url;
+                let url = data.l[id]; if(!url.startsWith('http')) url = 'https://' + url;
                 list.innerHTML += `<a href="${encodeURI(url)}" target="_blank" class="link-card"><i class="${platforms[id].icon}"></i><span>${platforms[id].label}</span></a>`;
             });
-
-            // Changer de vue
             document.getElementById('editSection').style.display = "none";
             document.getElementById('previewSection').style.display = "block";
             window.scrollTo(0,0);
         }
 
         function copyMyBio() {
-            if(!globalState.n) {
-                alert("Erreur: Aucune donnée à copier.");
-                return;
-            }
-
+            if(!globalState.n) return;
             try {
                 const encoded = encodeData(globalState);
                 const fullLink = window.location.origin + window.location.pathname + "?data=" + encoded;
-
-                navigator.clipboard.writeText(fullLink).then(() => {
-                    const btnTxt = document.getElementById('copyTxt');
-                    const originalTxt = btnTxt.innerText;
-                    btnTxt.innerText = "Lien copié !";
-                    setTimeout(() => { btnTxt.innerText = originalTxt; }, 2000);
-                });
-            } catch(e) {
-                alert("Erreur lors de la génération du lien.");
-                console.error(e);
-            }
+                const el = document.createElement('textarea');
+                el.value = fullLink;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                const btnTxt = document.getElementById('copyTxt');
+                btnTxt.innerText = "Lien copié !";
+                setTimeout(() => { btnTxt.innerText = "Copier mon lien"; }, 2000);
+            } catch(e) { console.error(e); }
         }
 
-        // Au chargement de la page
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
             if (params.has('data')) {
                 try {
                     const decoded = decodeData(params.get('data'));
-                    globalState = decoded; // Sauvegarder pour plus tard
+                    globalState = decoded;
                     renderFinalPage(decoded);
-                    // Mode visiteur : cacher les boutons d'édition
                     document.getElementById('editPencilBtn').style.display = 'none';
                     document.getElementById('copyBtn').style.display = 'none';
-                } catch(e) { 
-                    console.error("Erreur de chargement des données", e); 
-                    document.getElementById('editSection').style.display = "block";
-                }
-            } else {
-                document.getElementById('editSection').style.display = "block";
-            }
+                } catch(e) { document.getElementById('editSection').style.display = "block"; }
+            } else { document.getElementById('editSection').style.display = "block"; }
         };
 
         function closePopup() { document.getElementById('successPopup').style.display = "none"; }
-        function goBack() { 
-            document.getElementById('editSection').style.display = "block"; 
-            document.getElementById('previewSection').style.display = "none"; 
-        }
+        function goBack() { document.getElementById('editSection').style.display = "block"; document.getElementById('previewSection').style.display = "none"; }
     </script>
 </body>
-    </html>
+                </html>
